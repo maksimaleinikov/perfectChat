@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useState } from "react";
 import { db } from "../firebase";
 import {
   query,
@@ -6,58 +6,104 @@ import {
   where,
   getDocs,
   setDoc,
-  updateDoc,
+  doc,
+  getDoc,
   serverTimestamp,
+  updateDoc,
 } from "firebase/firestore";
-import { AuthContext } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
+import { useChat } from "../context/ChatContext";
 
 const Search = () => {
   const [username, setUsername] = useState("");
   const [user, setUser] = useState(null);
   const [err, setErr] = useState(false);
 
-  const [currentUser] = useContext(AuthContext);
+  const { currentUser } = useAuth();
+  const { dispatch } = useChat();
 
   const handleSearch = async () => {
-    const q = query(
-      collection(db, "users"),
-      where("displayName", "==", username)
-    );
+    setErr(false);
+    setUser(null);
+
+    if (!username.trim()) {
+      setErr(true);
+      return;
+    }
 
     try {
+      const q = query(
+        collection(db, "users"),
+        where("displayName", "==", username.trim())
+      );
+
       const querySnapshot = await getDocs(q);
-      querySnapshot.forEach((doc) => {
-        setUser(doc.data());
-      });
-      if (querySnapshot.empty) {
+
+      if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0];
+        setUser({
+          ...userDoc.data(),
+          id: userDoc.id,
+        });
+      } else {
         setErr(true);
-        setUser(null);
       }
     } catch (err) {
+      console.error("Search error:", err);
       setErr(true);
-      setUser(null);
     }
   };
 
   const handleKey = (e) => {
-    e.code === "Enter" && handleSearch();
+    if (e.code === "Enter") {
+      handleSearch();
+    }
   };
 
   const handleSelect = async () => {
-    //проверяем, существует ли общий чат
+    if (!user || !currentUser) return;
 
-    const combinedId =
-      currentUser.uid > user.uid
-        ? currentUser.uid + user.uid
-        : user.uid + currentUser.uid;
     try {
-      const res = await getDocs(db, "chats", combinedId);
+      const combinedId = [currentUser.uid, user.id].sort().join("_");
 
-      if (!res.exists()) {
-        //создаем чат в коллекции чатов
-        await setDoc(doc(db, "chats", combinedId), { messages: [] });
+      // Проверяем существование чата
+      const chatDocRef = doc(db, "chats", combinedId);
+      const chatDoc = await getDoc(chatDocRef);
+
+      // Создаем новый чат если не существует
+      if (!chatDoc.exists()) {
+        await setDoc(chatDocRef, {
+          messages: [],
+          participants: [currentUser.uid, user.id],
+          createdAt: serverTimestamp(),
+        });
       }
-    } catch (err) {}
+
+      // Обновляем userChats для текущего пользователя
+      await updateDoc(doc(db, "userChats", currentUser.uid), {
+        [combinedId + ".userInfo"]: {
+          uid: user.id,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+        },
+        [combinedId + ".date"]: serverTimestamp(),
+      });
+
+      // Диспатчим действие с тем же форматом, что и в Chats
+      dispatch({
+        type: "CHANGE_USER",
+        payload: {
+          uid: user.id,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+        },
+      });
+    } catch (err) {
+      console.error("Error in handleSelect:", err);
+    } finally {
+      setUser(null);
+      setUsername("");
+    }
   };
 
   return (
@@ -66,6 +112,7 @@ const Search = () => {
         <input
           type="text"
           placeholder="Find a user"
+          value={username}
           onChange={(e) => setUsername(e.target.value)}
           onKeyDown={handleKey}
         />
@@ -73,7 +120,7 @@ const Search = () => {
       {err && <span>User not found!</span>}
       {user && (
         <div className="userChat" onClick={handleSelect}>
-          <img src={user.photoURL} alt="" />
+          <img src={user.photoURL} alt={user.displayName} />
           <div className="userChatInfo">
             <span>{user.displayName}</span>
           </div>

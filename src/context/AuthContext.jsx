@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { auth } from "../firebase";
 
 export const AuthContext = createContext({
@@ -11,12 +11,14 @@ export const AuthContextProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Подписываемся на изменения состояния аутентификации
     const unsubscribe = auth.onAuthStateChanged((user) => {
       setCurrentUser(user);
       setLoading(false);
     });
 
-    return unsubscribe;
+    // Отписываемся при размонтировании
+    return () => unsubscribe();
   }, []);
 
   return (
@@ -26,4 +28,7 @@ export const AuthContextProvider = ({ children }) => {
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+// Хук удобн исп контекста
+export const useAuth = () => {
+  return useContext(AuthContext);
+};
