@@ -14,8 +14,6 @@ export const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    console.log(e.target[0].value);
-
     const displayName = e.target[0].value;
     const email = e.target[1].value;
     const password = e.target[2].value;
@@ -48,11 +46,11 @@ export const Register = () => {
             const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
             console.log("File available at:", downloadURL);
 
-            // Обновление профиля
-            await updateProfile(res.user, {
-              displayName,
-              photoURL: downloadURL,
-            });
+            // // Обновление профиля
+            // await updateProfile(res.user, {
+            //   displayName,
+            //   photoURL: downloadURL,
+            // });
 
             // Сохранение в Firestore
             await setDoc(doc(db, "users", res.user.uid), {

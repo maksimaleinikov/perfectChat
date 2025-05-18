@@ -64,39 +64,57 @@ const Search = () => {
     if (!user || !currentUser) return;
 
     try {
-      const combinedId = [currentUser.uid, user.id].sort().join("_");
+      const combinedId =
+        currentUser.uid > user.id
+          ? currentUser.uid + "_" + user.id
+          : user.id + "_" + currentUser.uid;
 
-      // Проверяем существование чата
       const chatDocRef = doc(db, "chats", combinedId);
       const chatDoc = await getDoc(chatDocRef);
 
-      // Создаем новый чат если не существует
       if (!chatDoc.exists()) {
         await setDoc(chatDocRef, {
           messages: [],
           participants: [currentUser.uid, user.id],
           createdAt: serverTimestamp(),
         });
+
+        // Обновляем userChats для текущего пользователя
+        await updateDoc(doc(db, "userChats", currentUser.uid), {
+          [combinedId]: {
+            userInfo: {
+              uid: user.id,
+              displayName: user.displayName,
+              photoURL: user.photoURL,
+            },
+            date: serverTimestamp(),
+            lastMessage: {
+              text: "Chat started",
+              date: serverTimestamp(),
+            },
+          },
+        });
+
+        // Обновляем userChats для собеседника
+        await updateDoc(doc(db, "userChats", user.id), {
+          [combinedId]: {
+            userInfo: {
+              uid: currentUser.uid,
+              displayName: currentUser.displayName,
+              photoURL: currentUser.photoURL,
+            },
+            date: serverTimestamp(),
+            lastMessage: {
+              text: "Chat started",
+              date: serverTimestamp(),
+            },
+          },
+        });
       }
 
-      // Обновляем userChats для текущего пользователя
-      await updateDoc(doc(db, "userChats", currentUser.uid), {
-        [combinedId + ".userInfo"]: {
-          uid: user.id,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-        },
-        [combinedId + ".date"]: serverTimestamp(),
-      });
-
-      // Диспатчим действие с тем же форматом, что и в Chats
       dispatch({
         type: "CHANGE_USER",
-        payload: {
-          uid: user.id,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-        },
+        payload: user,
       });
     } catch (err) {
       console.error("Error in handleSelect:", err);
