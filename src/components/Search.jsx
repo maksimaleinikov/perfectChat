@@ -23,33 +23,17 @@ const Search = () => {
   const { dispatch } = useChat();
 
   const handleSearch = async () => {
-    setErr(false);
-    setUser(null);
-
-    if (!username.trim()) {
-      setErr(true);
-      return;
-    }
+    const q = query(
+      collection(db, "users"),
+      where("displayName", "==", username)
+    );
 
     try {
-      const q = query(
-        collection(db, "users"),
-        where("displayName", "==", username.trim())
-      );
-
       const querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        const userDoc = querySnapshot.docs[0];
-        setUser({
-          ...userDoc.data(),
-          id: userDoc.id,
-        });
-      } else {
-        setErr(true);
-      }
+      querySnapshot.forEach((doc) => {
+        setUser(doc.data());
+      });
     } catch (err) {
-      console.error("Search error:", err);
       setErr(true);
     }
   };
@@ -61,67 +45,41 @@ const Search = () => {
   };
 
   const handleSelect = async () => {
-    if (!user || !currentUser) return;
-
+    //смотрим, если есть переписка (чаты в  firestore), иначе создаем
+    const combinedId =
+      currentUser.uid > user.uid
+        ? currentUser.uid + user.uid
+        : user.uid + currentUser.uid;
     try {
-      const combinedId =
-        currentUser.uid > user.id
-          ? currentUser.uid + "_" + user.id
-          : user.id + "_" + currentUser.uid;
+      const res = await getDoc(doc(db, "chats", combinedId));
 
-      const chatDocRef = doc(db, "chats", combinedId);
-      const chatDoc = await getDoc(chatDocRef);
+      if (!res.exists()) {
+        //создаем чат в коллекцию chats
+        await setDoc(doc(db, "chats", combinedId), { messages: [] });
 
-      if (!chatDoc.exists()) {
-        await setDoc(chatDocRef, {
-          messages: [],
-          participants: [currentUser.uid, user.id],
-          createdAt: serverTimestamp(),
-        });
-
-        // Обновляем userChats для текущего пользователя
+        //создаем userChats
         await updateDoc(doc(db, "userChats", currentUser.uid), {
-          [combinedId]: {
-            userInfo: {
-              uid: user.id,
-              displayName: user.displayName,
-              photoURL: user.photoURL,
-            },
-            date: serverTimestamp(),
-            lastMessage: {
-              text: "Chat started",
-              date: serverTimestamp(),
-            },
+          [combinedId + ".userInfo"]: {
+            uid: user.uid,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
           },
+          [combinedId + ".date"]: serverTimestamp(),
         });
 
-        // Обновляем userChats для собеседника
-        await updateDoc(doc(db, "userChats", user.id), {
-          [combinedId]: {
-            userInfo: {
-              uid: currentUser.uid,
-              displayName: currentUser.displayName,
-              photoURL: currentUser.photoURL,
-            },
-            date: serverTimestamp(),
-            lastMessage: {
-              text: "Chat started",
-              date: serverTimestamp(),
-            },
+        await updateDoc(doc(db, "userChats", user.uid), {
+          [combinedId + ".userInfo"]: {
+            uid: currentUser.uid,
+            displayName: currentUser.displayName,
+            photoURL: currentUser.photoURL,
           },
+          [combinedId + ".date"]: serverTimestamp(),
         });
       }
+    } catch (err) {}
 
-      dispatch({
-        type: "CHANGE_USER",
-        payload: user,
-      });
-    } catch (err) {
-      console.error("Error in handleSelect:", err);
-    } finally {
-      setUser(null);
-      setUsername("");
-    }
+    setUser(null);
+    setUsername("");
   };
 
   return (

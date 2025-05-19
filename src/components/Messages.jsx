@@ -9,19 +9,14 @@ const Messages = () => {
   const { data } = useChat();
 
   useEffect(() => {
-    if (!data?.chatId) return; // Добавляем проверку на chatId
-
     const unSub = onSnapshot(doc(db, "chats", data.chatId), (doc) => {
-      if (doc.exists()) {
-        // Безопасное получение messages с fallback на пустой массив
-        setMessages(doc.data().messages || []);
-      } else {
-        setMessages([]); // Если чата нет - очищаем сообщения
-      }
+      doc.exists() && setMessages(doc.data().messages);
     });
 
-    return () => unSub();
-  }, [data?.chatId]); // Зависимость от data.chatId
+    return () => {
+      unSub();
+    };
+  }, [data.chatId]);
   console.log(messages);
   return (
     <div className="messages">

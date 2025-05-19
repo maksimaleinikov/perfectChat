@@ -12,23 +12,19 @@ const Chats = () => {
   useEffect(() => {
     const getChats = () => {
       const unsub = onSnapshot(doc(db, "userChats", currentUser.uid), (doc) => {
-        const data = doc.data() || {};
-        // Фильтруем некорректные записи
-        const validChats = Object.entries(data).filter(
-          ([_, chatData]) => chatData?.userInfo?.uid
-        );
-        setChats(Object.fromEntries(validChats));
+        setChats(doc.data());
       });
 
-      return () => unsub();
+      return () => {
+        unsub();
+      };
     };
 
     currentUser.uid && getChats();
   }, [currentUser.uid]);
 
-  const handleSelect = (userInfo) => {
-    if (!userInfo?.uid) return;
-    dispatch({ type: "CHANGE_USER", payload: userInfo });
+  const handleSelect = (u) => {
+    dispatch({ type: "CHANGE_USER", payload: u });
   };
 
   return (

@@ -9,50 +9,34 @@ import { useNavigate, Link } from "react-router-dom";
 
 export const Register = () => {
   const [err, setErr] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
+    setLoading(true);
     e.preventDefault();
-
     const displayName = e.target[0].value;
     const email = e.target[1].value;
     const password = e.target[2].value;
     const file = e.target[3].files[0];
+
     try {
-      //  Регистрация пользователя
+      //Create user
       const res = await createUserWithEmailAndPassword(auth, email, password);
-      console.log("User created:", res.user.uid);
 
-      // Загрузка файла
-      const storageRef = ref(storage, `avatars/${res.user.uid}`);
-      console.log("Uploading to path:", storageRef.fullPath);
+      //Create a unique image name
+      const date = new Date().getTime();
+      const storageRef = ref(storage, `${displayName + date}`);
 
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      uploadTask.on(
-        "state_changed",
-        (snapshot) => {
-          const progress =
-            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          console.log("Upload progress:", progress + "%");
-        },
-        (error) => {
-          console.error("Upload error:", error);
-          setErr(true);
-        },
-        async () => {
+      await uploadBytesResumable(storageRef, file).then(() => {
+        getDownloadURL(storageRef).then(async (downloadURL) => {
           try {
-            //  Получение URL
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            console.log("File available at:", downloadURL);
-
-            // // Обновление профиля
-            // await updateProfile(res.user, {
-            //   displayName,
-            //   photoURL: downloadURL,
-            // });
-
-            // Сохранение в Firestore
+            //Update profile
+            await updateProfile(res.user, {
+              displayName,
+              photoURL: downloadURL,
+            });
+            //create user on firestore
             await setDoc(doc(db, "users", res.user.uid), {
               uid: res.user.uid,
               displayName,
@@ -60,19 +44,19 @@ export const Register = () => {
               photoURL: downloadURL,
             });
 
+            //create empty user chats on firestore
             await setDoc(doc(db, "userChats", res.user.uid), {});
             navigate("/");
-
-            console.log("Data saved successfully!");
-          } catch (error) {
-            console.error("Error saving data:", error);
+          } catch (err) {
+            console.log(err);
             setErr(true);
+            setLoading(false);
           }
-        }
-      );
-    } catch (error) {
-      console.error("Registration error:", error);
+        });
+      });
+    } catch (err) {
       setErr(true);
+      setLoading(false);
     }
   };
   return (
@@ -89,7 +73,8 @@ export const Register = () => {
             <img src={Add} alt="" />
             <span>Add an avatar</span>
           </label>
-          <button>Sign up</button>
+          <button disabled={loading}>Sign up</button>
+          {loading && "Uploading and compressing the image please wait..."}
           {err && <span>Something went wrong</span>}
         </form>
         <p>
