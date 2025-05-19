@@ -8,14 +8,15 @@ import { useChat } from "../context/ChatContext";
 
 const Chat = () => {
   const { data } = useChat();
+
   return (
     <div className="chat">
       <div className="chatInfo">
         <span>{data.user?.displayName}</span>
         <div className="chatIcons">
-          <img src={Cam} alt="" />
-          <img src={Add} alt="" />
-          <img src={More} alt="" />
+          <img src={Cam} alt="Camera icon" />
+          <img src={Add} alt="Add media icon" />
+          <img src={More} alt="More options" />
         </div>
       </div>
       <Messages />

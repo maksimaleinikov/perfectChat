@@ -10,21 +10,25 @@ const Chats = () => {
   const { dispatch } = useContext(ChatContext);
 
   useEffect(() => {
-    const getChats = () => {
-      const unsub = onSnapshot(doc(db, "userChats", currentUser.uid), (doc) => {
-        setChats(doc.data());
-      });
+    const subscribeToChats = () => {
+      const unsubscribeFromChats = onSnapshot(
+        doc(db, "userChats", currentUser.uid),
+        (docSnapshot) => {
+          setChats(docSnapshot.data());
+        }
+      );
 
       return () => {
-        unsub();
+        unsubscribeFromChats();
       };
     };
 
-    currentUser.uid && getChats();
+    currentUser.uid && subscribeToChats();
   }, [currentUser.uid]);
 
-  const handleSelect = (u) => {
-    dispatch({ type: "CHANGE_USER", payload: u });
+  // Handles chat selection and updates context
+  const handleSelect = (userInfo) => {
+    dispatch({ type: "CHANGE_USER", payload: userInfo });
   };
 
   return (
@@ -32,7 +36,8 @@ const Chats = () => {
       {Object.entries(chats)
         ?.sort((a, b) => b[1].date?.seconds - a[1].date?.seconds)
         ?.map(([chatId, chatData]) => {
-          if (!chatData?.userInfo?.photoURL) return null; // Пропускаем если нет фото
+          // Skip rendering if no user photo
+          if (!chatData?.userInfo?.photoURL) return null;
 
           return (
             <div

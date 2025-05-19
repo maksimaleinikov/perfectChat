@@ -83,13 +83,13 @@ const Input = () => {
     };
 
     try {
-      // Обновляем userChats для текущего пользователя
+      // Update userChats for currentUser
       await updateDoc(doc(db, "userChats", currentUser.uid), {
         [`${data.chatId}.lastMessage`]: lastMessage,
         [`${data.chatId}.date`]: serverTimestamp(),
       });
 
-      // Обновляем userChats для собеседника
+      // Update userChats for user
       await updateDoc(doc(db, "userChats", data.user.uid), {
         [`${data.chatId}.lastMessage`]: lastMessage,
         [`${data.chatId}.date`]: serverTimestamp(),
