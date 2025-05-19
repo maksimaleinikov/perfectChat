@@ -12,7 +12,6 @@ Real-time чат на React с Firebase,
 Быстрый старт
 
 1. Клонируйте репозиторий:
-```bash
   git clone https://github.com/maksimaleinikov/perfectChat.git
   cd perfectChat
 2. Установите зависимости
