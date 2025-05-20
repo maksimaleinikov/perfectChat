@@ -4,12 +4,12 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyB1MicF_IdfWEoCUk-fV_DMvqbFLFzoDCU",
-  authDomain: "perfectchat-910aa.firebaseapp.com",
-  projectId: "perfectchat-910aa",
-  storageBucket: "perfectchat-910aa.firebasestorage.app",
-  messagingSenderId: "781493450643",
-  appId: "1:781493450643:web:485a412c8a77699cfc9a66",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 // Initialize Firebase
