@@ -3,11 +3,11 @@ import { useChat } from "../context/ChatContext";
 import { useAuth } from "../context/AuthContext";
 
 export const Message = ({ message }) => {
-  console.log(message);
   const { currentUser } = useAuth();
   const { data } = useChat();
 
   const ref = useRef();
+
   useEffect(() => {
     ref.current?.scrollIntoView({ behavior: "smooth" });
   }, [message]);
@@ -15,7 +15,7 @@ export const Message = ({ message }) => {
   return (
     <div
       ref={ref}
-      className={`message ${message.senderId === currentUser.uid && "owner"}`}
+      className={`message ${message.senderId === currentUser.uid && "owner"}`} // Determine if the message is sent by the current user
     >
       <div className="messageInfo">
         <img

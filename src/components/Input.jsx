@@ -9,8 +9,6 @@ import {
   serverTimestamp,
   Timestamp,
   updateDoc,
-  getDoc,
-  setDoc,
 } from "firebase/firestore";
 import { db, storage } from "../firebase";
 import { v4 as uuid } from "uuid";
@@ -19,88 +17,82 @@ import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 const Input = () => {
   const [text, setText] = useState("");
   const [img, setImg] = useState(null);
+  const [isSending, setIsSending] = useState(false);
 
   const { currentUser } = useContext(AuthContext);
-  const { data } = useContext(ChatContext);
+  const { data: chatData } = useContext(ChatContext);
 
   const handleSend = async () => {
-    if (img) {
-      const storageRef = ref(storage, uuid());
+    if ((!text && !img) || isSending) return; // Don't send empty messages and redial block
 
-      const uploadTask = uploadBytesResumable(storageRef, img);
+    try {
+      if (img) {
+        await uploadImageAndSendMessage();
+      } else {
+        await sendTextMessage();
+      }
 
-      uploadTask.on(
-        (error) => {
-          console.error("Upload error:", error);
-        },
-        () => {
-          getDownloadURL(uploadTask.snapshot.ref).then(async (downloadURL) => {
-            await updateDoc(doc(db, "chats", data.chatId), {
-              messages: arrayUnion({
-                id: uuid(),
-                text,
-                senderId: currentUser.uid,
-                date: Timestamp.now(),
-                img: downloadURL,
-              }),
-            });
-          });
-        }
-      );
-    } else {
-      await updateDoc(doc(db, "chats", data.chatId), {
-        messages: arrayUnion({
-          id: uuid(),
-          text,
-          senderId: currentUser.uid,
-          date: Timestamp.now(),
-        }),
-      });
+      await updateLastMessageInfo(text || "Image");
+      resetInputFields();
+    } catch (error) {
+      console.error("Message sending error:", error);
     }
+  };
 
-    await updateDoc(doc(db, "userChats", currentUser.uid), {
-      [data.chatId + ".lastMessage"]: {
-        text,
-      },
-      [data.chatId + ".date"]: serverTimestamp(),
+  const uploadImageAndSendMessage = async () => {
+    const storageRef = ref(storage, uuid());
+    const uploadTask = uploadBytesResumable(storageRef, img);
+
+    await uploadTask;
+
+    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+    await sendMessage(text, downloadURL);
+  };
+
+  const sendTextMessage = async () => {
+    await sendMessage(text);
+  };
+
+  const sendMessage = async (messageText, imageUrl = null) => {
+    const message = {
+      id: uuid(),
+      text: messageText,
+      senderId: currentUser.uid,
+      date: Timestamp.now(),
+      ...(imageUrl && { img: imageUrl }),
+    };
+
+    await updateDoc(doc(db, "chats", chatData.chatId), {
+      messages: arrayUnion(message),
     });
+  };
 
-    await updateDoc(doc(db, "userChats", data.user.uid), {
-      [data.chatId + ".lastMessage"]: {
-        text,
-      },
-      [data.chatId + ".date"]: serverTimestamp(),
-    });
+  const updateLastMessageInfo = async (messageText) => {
+    const lastMessage = {
+      text: messageText,
+      date: serverTimestamp(),
+    };
 
+    const updatePayload = {
+      [`${chatData.chatId}.lastMessage`]: lastMessage,
+      [`${chatData.chatId}.date`]: serverTimestamp(),
+    };
+
+    // Update both users' records in parallel
+    await Promise.all([
+      updateDoc(doc(db, "userChats", currentUser.uid), updatePayload),
+      updateDoc(doc(db, "userChats", chatData.user.uid), updatePayload),
+    ]);
+  };
+
+  const resetInputFields = () => {
     setText("");
     setImg(null);
   };
 
-  const updateUserChats = async (messageText) => {
-    const lastMessage = {
-      text: messageText || "Image",
-      date: serverTimestamp(),
-    };
-
-    try {
-      // Update userChats for currentUser
-      await updateDoc(doc(db, "userChats", currentUser.uid), {
-        [`${data.chatId}.lastMessage`]: lastMessage,
-        [`${data.chatId}.date`]: serverTimestamp(),
-      });
-
-      // Update userChats for user
-      await updateDoc(doc(db, "userChats", data.user.uid), {
-        [`${data.chatId}.lastMessage`]: lastMessage,
-        [`${data.chatId}.date`]: serverTimestamp(),
-      });
-    } catch (err) {
-      console.error("Error updating userChats:", err);
-    }
-  };
-
   const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
       handleSend();
     }
   };
@@ -115,15 +107,16 @@ const Input = () => {
         onKeyDown={handleKeyDown}
       />
       <div className="send">
-        <img src={Attach} alt="" />
+        <img src={Attach} alt="Attach file" />
         <input
           type="file"
           style={{ display: "none" }}
           id="file"
-          onChange={(e) => setImg(e.target.files[0])}
+          onChange={(e) => e.target.files[0] && setImg(e.target.files[0])}
+          accept="image/*"
         />
         <label htmlFor="file">
-          <img src={Img} alt="" />
+          <img src={Img} alt="Upload image" />
         </label>
         <button onClick={handleSend}>Send</button>
       </div>

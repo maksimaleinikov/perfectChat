@@ -11,7 +11,7 @@ export const ChatContextProvider = ({ children }) => {
     user: {},
   };
 
-  const chatReducer = (state, action) => {
+  const manageChatState = (state, action) => {
     switch (action.type) {
       case "CHANGE_USER":
         return {
@@ -26,14 +26,24 @@ export const ChatContextProvider = ({ children }) => {
     }
   };
 
-  const [state, dispatch] = useReducer(chatReducer, INITIAL_STATE);
+  const [chatState, dispatchChatAction] = useReducer(
+    manageChatState,
+    INITIAL_STATE
+  );
 
   return (
-    <ChatContext.Provider value={{ data: state, dispatch }}>
+    <ChatContext.Provider
+      value={{
+        data: chatState,
+        dispatch: dispatchChatAction,
+      }}
+    >
       {children}
     </ChatContext.Provider>
   );
 };
+
+//Custom hook for context
 
 export const useChat = () => {
   return useContext(ChatContext);

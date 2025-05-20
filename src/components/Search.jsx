@@ -15,71 +15,86 @@ import { useAuth } from "../context/AuthContext";
 import { useChat } from "../context/ChatContext";
 
 const Search = () => {
-  const [username, setUsername] = useState("");
-  const [user, setUser] = useState(null);
-  const [err, setErr] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [foundUser, setFoundUser] = useState(null);
+  const [hasError, setHasError] = useState(false);
 
   const { currentUser } = useAuth();
   const { dispatch } = useChat();
 
   const handleSearch = async () => {
-    const q = query(
-      collection(db, "users"),
-      where("displayName", "==", username)
+    const usersRef = collection(db, "users");
+    const searchQueryRef = query(
+      usersRef,
+      where("displayName", "==", searchQuery)
     );
 
     try {
-      const querySnapshot = await getDocs(q);
-      querySnapshot.forEach((doc) => {
-        setUser(doc.data());
+      const snapshot = await getDocs(searchQueryRef);
+      if (snapshot.empty) {
+        setHasError(true);
+        setFoundUser(null);
+        return;
+      }
+
+      snapshot.forEach((doc) => {
+        setFoundUser(doc.data());
       });
-    } catch (err) {
-      setErr(true);
+      setHasError(false);
+    } catch (error) {
+      setHasError(true);
+      console.error("Search failed:", error);
     }
   };
 
-  const handleKey = (e) => {
-    if (e.code === "Enter") {
-      handleSearch();
-    }
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") handleSearch();
   };
 
-  const handleSelect = async () => {
-    //смотрим, если есть переписка (чаты в  firestore), иначе создаем
-    const combinedId =
-      currentUser.uid > user.uid
-        ? currentUser.uid + user.uid
-        : user.uid + currentUser.uid;
+  const handleUserSelect = async () => {
+    if (!foundUser) return;
+
+    const chatId =
+      currentUser.uid > foundUser.uid
+        ? currentUser.uid + foundUser.uid
+        : foundUser.uid + currentUser.uid;
+
     try {
-      const res = await getDoc(doc(db, "chats", combinedId));
+      const chatRef = doc(db, "chats", chatId);
+      const chatSnap = await getDoc(chatRef);
 
-      if (!res.exists()) {
-        //создаем чат в коллекцию chats
-        await setDoc(doc(db, "chats", combinedId), { messages: [] });
+      if (!chatSnap.exists()) {
+        // create a chat if it didn't exist
+        await setDoc(chatRef, { messages: [] });
 
-        //создаем userChats
-        await updateDoc(doc(db, "userChats", currentUser.uid), {
-          [combinedId + ".userInfo"]: {
-            uid: user.uid,
-            displayName: user.displayName,
-            photoURL: user.photoURL,
+        const userChatData = {
+          [`${chatId}.userInfo`]: {
+            uid: foundUser.uid,
+            displayName: foundUser.displayName,
+            photoURL: foundUser.photoURL,
           },
-          [combinedId + ".date"]: serverTimestamp(),
-        });
+          [`${chatId}.date`]: serverTimestamp(),
+        };
 
-        await updateDoc(doc(db, "userChats", user.uid), {
-          [combinedId + ".userInfo"]: {
+        await updateDoc(doc(db, "userChats", currentUser.uid), userChatData);
+        await updateDoc(doc(db, "userChats", foundUser.uid), {
+          [`${chatId}.userInfo`]: {
             uid: currentUser.uid,
             displayName: currentUser.displayName,
             photoURL: currentUser.photoURL,
           },
-          [combinedId + ".date"]: serverTimestamp(),
+          [`${chatId}.date`]: serverTimestamp(),
         });
       }
-    } catch (err) {}
 
-    setUser(null);
-    setUsername("");
+      setFoundUser(null);
+      setSearchQuery("");
+
+      // automatic transition to chat
+      dispatch({ type: "CHANGE_USER", payload: foundUser });
+    } catch (error) {
+      console.error("Chat creation error:", error);
+    }
   };
 
   return (
@@ -87,18 +102,27 @@ const Search = () => {
       <div className="searchForm">
         <input
           type="text"
-          placeholder="Find a user"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          onKeyDown={handleKey}
+          placeholder="Найти пользователя"
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setHasError(false);
+          }}
+          onKeyDown={handleKeyPress}
         />
       </div>
-      {err && <span>User not found!</span>}
-      {user && (
-        <div className="userChat" onClick={handleSelect}>
-          <img src={user.photoURL} alt={user.displayName} />
+
+      {hasError && <span>Пользователь не найден</span>}
+
+      {foundUser && (
+        <div className="userChat" onClick={handleUserSelect}>
+          <img
+            src={foundUser.photoURL}
+            alt={foundUser.displayName}
+            className="user-avatar"
+          />
           <div className="userChatInfo">
-            <span>{user.displayName}</span>
+            <span>{foundUser.displayName}</span>
           </div>
         </div>
       )}

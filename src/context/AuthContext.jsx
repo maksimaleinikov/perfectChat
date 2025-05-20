@@ -4,31 +4,40 @@ import { auth } from "../firebase";
 export const AuthContext = createContext({
   currentUser: null,
   loading: true,
+  error: null,
 });
 
 export const AuthContextProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Подписываемся на изменения состояния аутентификации
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      setCurrentUser(user);
-      setLoading(false);
-    });
+    const authSubscription = auth.onAuthStateChanged(
+      (user) => {
+        setCurrentUser(user);
+        setLoading(false);
+        setError(null);
+      },
+      (authError) => {
+        setError(authError);
+        setLoading(false);
+      }
+    );
 
-    // Отписываемся при размонтировании
-    return () => unsubscribe();
+    // Cleanup subscription on unmount
+    return authSubscription;
   }, []);
 
   return (
-    <AuthContext.Provider value={{ currentUser, loading }}>
+    <AuthContext.Provider value={{ currentUser, loading, error }}>
       {!loading && children}
     </AuthContext.Provider>
   );
 };
 
-// Хук удобн исп контекста
+//Custom hook for context
+
 export const useAuth = () => {
   return useContext(AuthContext);
 };
