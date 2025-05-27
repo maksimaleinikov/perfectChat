@@ -8,7 +8,7 @@ import { doc, setDoc } from "firebase/firestore";
 import { useNavigate, Link } from "react-router-dom";
 
 export const Register = () => {
-  const [err, setErr] = useState(false);
+  const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -48,14 +48,13 @@ export const Register = () => {
             await setDoc(doc(db, "userChats", res.user.uid), {});
             navigate("/");
           } catch (err) {
-            console.log(err);
-            setErr(true);
+            setError(true);
             setLoading(false);
           }
         });
       });
     } catch (err) {
-      setErr(true);
+      setError(true);
       setLoading(false);
     }
   };
@@ -75,7 +74,7 @@ export const Register = () => {
           </label>
           <button disabled={loading}>Sign up</button>
           {loading && "Uploading and compressing the image please wait..."}
-          {err && <span>Something went wrong</span>}
+          {error && <span>Something went wrong</span>}
         </form>
         <p>
           Do you have an account? <Link to="/login">Login</Link>

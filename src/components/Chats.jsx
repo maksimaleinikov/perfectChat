@@ -34,7 +34,7 @@ const Chats = () => {
   return (
     <div className="chats">
       {Object.entries(chats)
-        ?.sort((a, b) => b[1].date?.seconds - a[1].date?.seconds)
+        ?.sort((a, b) => b[1].date?.seconds - a[1].date?.seconds) //sorted chats in order by timestamp (newest chats first)
         ?.map(([chatId, chatData]) => {
           // Skip rendering if no user photo
           if (!chatData?.userInfo?.photoURL) return null;

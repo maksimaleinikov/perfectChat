@@ -32,7 +32,7 @@ const Input = () => {
         await sendTextMessage();
       }
 
-      await updateLastMessageInfo(text || "Image");
+      await updateBothUsersLastMessage(text || "Image");
       resetInputFields();
     } catch (error) {
       console.error("Message sending error:", error);
@@ -67,7 +67,7 @@ const Input = () => {
     });
   };
 
-  const updateLastMessageInfo = async (messageText) => {
+  const updateBothUsersLastMessage = async (messageText) => {
     const lastMessage = {
       text: messageText,
       date: serverTimestamp(),

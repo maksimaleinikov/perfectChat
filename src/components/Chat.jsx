@@ -1,5 +1,5 @@
 import React from "react";
-import Cam from "../img/icons/cam.png";
+import Camera from "../img/icons/cam.png";
 import Add from "../img/icons/addImage.png";
 import More from "../img/icons/more.png";
 import Messages from "./Messages";
@@ -14,7 +14,7 @@ const Chat = () => {
       <div className="chatInfo">
         <span>{data.user?.displayName}</span>
         <div className="chatIcons">
-          <img src={Cam} alt="Camera icon" />
+          <img src={Camera} alt="Camera icon" />
           <img src={Add} alt="Add media icon" />
           <img src={More} alt="More options" />
         </div>
